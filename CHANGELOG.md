@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-09-26 10:19]
+
+### Changed
+- Moved hardcoded protected admin email to `config_frozen.php` as `FROZEN_PROTECTED_EMAIL` constant
+
 ## [2026-09-26 06:34]
 
 ### Added

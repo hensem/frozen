@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['use
     $target = $pdo->prepare('SELECT email FROM users WHERE id=?');
     $target->execute([$uid]);
     $target_email = $target->fetchColumn();
-    $protected = ($target_email === 'hensem@gmail.com' && in_array($_POST['action'], ['ban','unapprove']));
+    $protected = ($target_email === FROZEN_PROTECTED_EMAIL && in_array($_POST['action'], ['ban','unapprove']));
     if (!$protected) {
       switch ($_POST['action']) {
         case 'approve':
@@ -128,7 +128,7 @@ function log_query_string($overrides = []) {
             <?php if ($u['banned']): ?>
               <form method="post"><input type="hidden" name="action" value="unban"><input type="hidden" name="user_id" value="<?= $u['id'] ?>"><button type="submit">Unban</button></form>
             <?php elseif ($u['approved']): ?>
-              <?php if ($u['email'] !== 'hensem@gmail.com'): ?>
+              <?php if ($u['email'] !== FROZEN_PROTECTED_EMAIL): ?>
               <form method="post"><input type="hidden" name="action" value="unapprove"><input type="hidden" name="user_id" value="<?= $u['id'] ?>"><button type="submit" class="btn-warn">Unapprove</button></form>
               <form method="post"><input type="hidden" name="action" value="ban"><input type="hidden" name="user_id" value="<?= $u['id'] ?>"><button type="submit" class="btn-danger">Ban</button></form>
               <?php endif; ?>
