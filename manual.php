@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $id      = (int)($_POST['id'] ?? 0);
     $content = $_POST['content'] ?? '';
     if (!$id) { echo json_encode(['ok'=>false,'error'=>'No template']); exit; }
-    // Validate: find {{VAR}} in content, check all exist
+    // Validate: find {{VAR}} and [[IMG]] in content, check all exist
     preg_match_all('/\{\{([A-Z0-9_]+)\}\}/', $content, $m);
     $used_names = array_unique($m[1]);
     $vars = $pdo->prepare('SELECT name FROM template_variables WHERE template_id=?');
@@ -50,6 +50,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $undefined = array_diff($used_names, $known);
     if ($undefined) {
       echo json_encode(['ok'=>false,'error'=>'Undefined variables: {{'.implode('}}, {{', $undefined).'}}']);
+      exit;
+    }
+    preg_match_all('/\[\[([A-Z0-9_]+)\]\]/', $content, $mi);
+    $used_imgs = array_unique($mi[1]);
+    $imgs = $pdo->prepare('SELECT name FROM template_images WHERE template_id=?');
+    $imgs->execute([$id]);
+    $known_imgs = array_column($imgs->fetchAll(PDO::FETCH_ASSOC), 'name');
+    $undef_imgs = array_diff($used_imgs, $known_imgs);
+    if ($undef_imgs) {
+      echo json_encode(['ok'=>false,'error'=>'Undefined images: [['.implode(']], [[', $undef_imgs).']]']);
       exit;
     }
     $pdo->prepare('UPDATE templates SET content=?,updated_at=? WHERE id=?')->execute([$content, $now, $id]);
@@ -161,6 +171,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit;
   }
 
+  if ($action === 'add_image') {
+    $tid      = (int)($_POST['template_id'] ?? 0);
+    $name     = strtoupper(trim($_POST['name'] ?? ''));
+    $image_id = (int)($_POST['image_id'] ?? 0);
+    if (!$tid || !$name || !$image_id) { echo json_encode(['ok'=>false,'error'=>'Invalid']); exit; }
+    if (!preg_match('/^[A-Z0-9_]+$/', $name)) {
+      echo json_encode(['ok'=>false,'error'=>'Image name must be uppercase letters, numbers and underscores only']);
+      exit;
+    }
+    try {
+      $pdo->prepare('INSERT INTO template_images (template_id,name,image_id,created_at,updated_at) VALUES (?,?,?,?,?)')
+          ->execute([$tid, $name, $image_id, $now, $now]);
+      log_activity($pdo, 'add_template_image', "template_id=$tid name=$name");
+      echo json_encode(['ok'=>true]);
+    } catch (Exception $e) {
+      echo json_encode(['ok'=>false,'error'=>'Image name already exists in this template']);
+    }
+    exit;
+  }
+
+  if ($action === 'delete_image') {
+    $iid = (int)($_POST['img_id'] ?? 0);
+    if (!$iid) { echo json_encode(['ok'=>false,'error'=>'Invalid']); exit; }
+    $img = $pdo->prepare('SELECT ti.*, t.content FROM template_images ti JOIN templates t ON t.id=ti.template_id WHERE ti.id=?');
+    $img->execute([$iid]);
+    $img = $img->fetch(PDO::FETCH_ASSOC);
+    if (!$img) { echo json_encode(['ok'=>false,'error'=>'Not found']); exit; }
+    if (str_contains($img['content'], '[['.$img['name'].']]')) {
+      echo json_encode(['ok'=>false,'error'=>'Image is still used in template content. Remove all occurrences first.']);
+      exit;
+    }
+    $pdo->prepare('DELETE FROM template_images WHERE id=?')->execute([$iid]);
+    log_activity($pdo, 'delete_template_image', $img['name']);
+    echo json_encode(['ok'=>true]);
+    exit;
+  }
+
   if ($action === 'load_template') {
     $id = (int)($_POST['id'] ?? 0);
     if (!$id) { echo json_encode(['ok'=>false]); exit; }
@@ -174,7 +221,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     foreach ($vars as &$v) {
       $v['used'] = str_contains($tpl['content'], '{{'.$v['name'].'}}');
     }
-    echo json_encode(['ok'=>true,'template'=>$tpl,'variables'=>$vars]);
+    $imgs = $pdo->prepare('SELECT ti.id, ti.name, ti.image_id, im.name AS image_name FROM template_images ti JOIN images im ON im.id=ti.image_id WHERE ti.template_id=? ORDER BY ti.name');
+    $imgs->execute([$id]);
+    $imgs = $imgs->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($imgs as &$img) {
+      $img['used'] = str_contains($tpl['content'], '[['.$img['name'].']]');
+    }
+    // All available images for the picker
+    $all_images = $pdo->query('SELECT id, name FROM images WHERE id > 1 ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode(['ok'=>true,'template'=>$tpl,'variables'=>$vars,'images'=>$imgs,'all_images'=>$all_images]);
     exit;
   }
 
@@ -285,7 +340,7 @@ select.tpl-select { padding:8px 10px; border:1px solid #cbd5e1; border-radius:6p
         </div>
       </div>
 
-      <!-- Right: variables -->
+      <!-- Right: variables + images -->
       <div class="panel">
         <h2>Variables</h2>
         <div id="var-list"></div>
@@ -297,6 +352,22 @@ select.tpl-select { padding:8px 10px; border:1px solid #cbd5e1; border-radius:6p
             <button onclick="addVariable()">Add</button>
           </div>
           <p style="font-size:.78rem;color:#94a3b8;margin-top:4px;">Uppercase letters, numbers and underscores only.</p>
+        </div>
+
+        <h2 style="margin-top:24px;">Images</h2>
+        <div id="img-list"></div>
+        <div style="margin-top:14px;border-top:1px solid #f1f5f9;padding-top:14px;">
+          <p style="font-size:.85rem;font-weight:600;margin-bottom:8px;">Add Image</p>
+          <div class="field-row">
+            <input type="text" id="new-img-name" placeholder="e.g. PRODUCT_PHOTO" style="text-transform:uppercase;" maxlength="30">
+            <div style="position:relative;flex:1;min-width:140px;">
+              <input type="text" id="new-img-search" placeholder="Search image..." autocomplete="off" style="width:100%;box-sizing:border-box;" oninput="filterImgPick()" onfocus="filterImgPick()" onblur="setTimeout(()=>document.getElementById('img-pick-drop').style.display='none',150)">
+              <input type="hidden" id="new-img-pick">
+              <div id="img-pick-drop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #cbd5e1;border-radius:6px;max-height:180px;overflow-y:auto;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.1);"></div>
+            </div>
+            <button onclick="addImage()">Add</button>
+          </div>
+          <p style="font-size:.78rem;color:#94a3b8;margin-top:4px;">Use [[NAME]] in template content.</p>
         </div>
       </div>
 
@@ -333,6 +404,7 @@ select.tpl-select { padding:8px 10px; border:1px solid #cbd5e1; border-radius:6p
 </div>
 <script>
 let currentTplId = null;
+let allImagesData = [];
 
 function showMsg(msg, ok) {
   const el = document.getElementById('msg-global');
@@ -361,6 +433,7 @@ async function loadTemplate(id) {
   document.getElementById('tpl-content').value    = r.template.content;
   document.getElementById('editor-area').style.display = 'block';
   renderVars(r.variables);
+  renderImages(r.images, r.all_images);
   checkUndefined();
 }
 
@@ -382,9 +455,13 @@ function checkUndefined() {
   const matches = [...content.matchAll(/\{\{([A-Z0-9_]+)\}\}/g)].map(m => m[1]);
   const varEls  = [...document.querySelectorAll('.var-name')].map(el => el.textContent.replace(/[{}]/g,''));
   const undef   = [...new Set(matches)].filter(n => !varEls.includes(n));
-  const warn    = document.getElementById('undef-warn');
-  if (undef.length) {
-    warn.textContent = '⚠ Undefined variables: {{' + undef.join('}}, {{') + '}}';
+  const imgMatches = [...content.matchAll(/\[\[([A-Z0-9_]+)\]\]/g)].map(m => m[1]);
+  const imgEls     = [...document.querySelectorAll('.img-token-name')].map(el => el.textContent.replace(/[\[\]]/g,''));
+  const undefImgs  = [...new Set(imgMatches)].filter(n => !imgEls.includes(n));
+  const all = [...undef.map(n=>'{{'+n+'}}'), ...undefImgs.map(n=>'[['+n+']]')];
+  const warn = document.getElementById('undef-warn');
+  if (all.length) {
+    warn.textContent = '⚠ Undefined: ' + all.join(', ');
     warn.style.display = 'block';
   } else {
     warn.style.display = 'none';
@@ -392,7 +469,7 @@ function checkUndefined() {
 }
 
 document.addEventListener('input', e => { if (e.target.id === 'tpl-content') checkUndefined(); });
-document.addEventListener('input', e => { if (e.target.id === 'new-var-name') e.target.value = e.target.value.toUpperCase(); });
+document.addEventListener('input', e => { if (e.target.id === 'new-var-name' || e.target.id === 'new-img-name') e.target.value = e.target.value.toUpperCase(); });
 
 async function createTemplate() {
   const name = document.getElementById('new-tpl-name').value.trim();
@@ -442,6 +519,63 @@ async function addVariable() {
   showMsg('Variable added.', true);
   document.getElementById('new-var-name').value  = '';
   document.getElementById('new-var-value').value = '';
+  await loadTemplate(currentTplId);
+}
+
+function renderImages(imgs, allImages) {
+  allImagesData = allImages || [];
+  const el = document.getElementById('img-list');
+  if (!imgs.length) { el.innerHTML = '<p class="muted">No images yet.</p>'; return; }
+  el.innerHTML = imgs.map(i => `
+    <div class="var-row" id="irow-${i.id}">
+      <img src="/frozen/img.php?id=${i.image_id}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;">
+      <span class="img-token-name" style="font-family:monospace;font-size:.9rem;flex:1;">[[${escHtml(i.name)}]]</span>
+      <span class="${i.used ? 'badge-used' : 'badge-unused'}">${i.used ? 'Used' : 'Unused'}</span>
+      <button class="btn-danger" style="padding:4px 10px;font-size:.8rem;" onclick="deleteImage(${i.id},'${escHtml(i.name)}')" ${i.used ? 'disabled title="Remove from content first"' : ''}>Delete</button>
+    </div>
+  `).join('');
+}
+
+function filterImgPick() {
+  const q    = document.getElementById('new-img-search').value.toLowerCase();
+  const drop = document.getElementById('img-pick-drop');
+  const matches = allImagesData.filter(i => i.name.toLowerCase().includes(q));
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  drop.innerHTML = matches.map(i =>
+    `<div style="padding:7px 10px;cursor:pointer;font-size:.9rem;" onmousedown="pickImg(${i.id},'${escHtml(i.name)}')">
+      <img src="/frozen/img.php?id=${i.id}" style="width:24px;height:24px;object-fit:cover;border-radius:3px;vertical-align:middle;margin-right:6px;">${escHtml(i.name)}
+    </div>`
+  ).join('');
+  drop.style.display = 'block';
+}
+
+function pickImg(id, name) {
+  document.getElementById('new-img-pick').value   = id;
+  document.getElementById('new-img-search').value = name;
+  document.getElementById('img-pick-drop').style.display = 'none';
+}
+
+async function addImage() {
+  if (!currentTplId) return;
+  const name     = document.getElementById('new-img-name').value.trim().toUpperCase();
+  const image_id = document.getElementById('new-img-pick').value;
+  if (!name) { showMsg('Enter an image name.', false); return; }
+  if (name.length > 30) { showMsg('Image name cannot exceed 30 characters.', false); return; }
+  if (!image_id) { showMsg('Pick an image.', false); return; }
+  const r = await post({ action:'add_image', template_id:currentTplId, name, image_id });
+  if (!r.ok) { showMsg(r.error, false); return; }
+  showMsg('Image added.', true);
+  document.getElementById('new-img-name').value   = '';
+  document.getElementById('new-img-pick').value   = '';
+  document.getElementById('new-img-search').value = '';
+  await loadTemplate(currentTplId);
+}
+
+async function deleteImage(iid, name) {
+  if (!confirm('Delete image [[' + name + ']]?')) return;
+  const r = await post({ action:'delete_image', img_id:iid });
+  if (!r.ok) { showMsg(r.error, false); return; }
+  showMsg('Image deleted.', true);
   await loadTemplate(currentTplId);
 }
 

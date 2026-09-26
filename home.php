@@ -41,7 +41,14 @@ foreach ($items as $item) {
   foreach ($vals->fetchAll(PDO::FETCH_ASSOC) as $v) {
     $content = str_replace('{{'.$v['name'].'}}', $v['value'], $content);
   }
-  $item_manuals[$item['id']] = nl2br(htmlspecialchars($content, ENT_QUOTES));
+  // Escape and convert newlines first, then substitute image tokens
+  $content = nl2br(htmlspecialchars($content, ENT_QUOTES));
+  $timg = $pdo->prepare('SELECT ti.name, ti.image_id FROM template_images ti WHERE ti.template_id=?');
+  $timg->execute([$item['template_id']]);
+  foreach ($timg->fetchAll(PDO::FETCH_ASSOC) as $img) {
+    $content = str_replace('[['.htmlspecialchars($img['name'], ENT_QUOTES).']]', '<img src="/frozen/img.php?id='.$img['image_id'].'" style="max-width:100%;border-radius:6px;margin:6px 0;display:block;">', $content);
+  }
+  $item_manuals[$item['id']] = $content;
 }
 ?>
 <!DOCTYPE html>
