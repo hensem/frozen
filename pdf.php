@@ -54,4 +54,10 @@ $mpdf->WriteHTML("
 </style>
 $html
 ");
+if ($lang === 'my') {
+  $mpdf->AddPage();
+  // Page content width = 210 - 15 - 15 = 180mm; half = 90mm; square image so height = 90mm
+  $mpdf->Image(__DIR__ . '/images/QR.png', 60, 78.1, 90, 90);
+}
+
 $mpdf->Output("$title.pdf", 'D');
