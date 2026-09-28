@@ -86,8 +86,12 @@ Dua butang tersedia di atas jadual:
 
 | Butang | Penerangan |
 |--------|-----------|
-| ⬇️ Senarai Harga (BM) | PDF senarai harga dalam Bahasa Melayu (2 lajur: Item, Harga). Halaman kedua mengandungi kod QR. |
+| ⬇️ Senarai Harga (BM) | PDF senarai harga dalam Bahasa Melayu (2 lajur: Item dengan gambar, Harga). Saiz gambar dikira secara automatik supaya semua item muat dalam satu halaman. Halaman kedua mengandungi kod QR. |
 | ⬇️ Stock List (EN) | PDF senarai stok dalam Bahasa Inggeris (3 lajur: Item, Stock, lajur kosong). |
+
+### Sejarah Harga
+
+Klik butang **Price History** pada mana-mana baris item untuk melihat rekod perubahan harga beli dan harga jual item tersebut, termasuk tarikh perubahan dan pengguna yang membuat perubahan.
 
 ---
 

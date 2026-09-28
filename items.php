@@ -14,9 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $sell = (float)$_POST['sell_price'];
     if ($name && $qty > 0 && $buy > 0 && $sell > 0) {
       try {
-        $pdo->prepare('INSERT INTO items (name,quantity,buy_price,sell_price,image_id) VALUES (?,?,?,?,1)')->execute([$name,$qty,$buy,$sell]);
+        $now = date('Y-m-d H:i:s');
+        $pdo->prepare('INSERT INTO items (name,quantity,buy_price,sell_price,image_id,created_at,updated_at) VALUES (?,?,?,?,1,?,?)')->execute([$name,$qty,$buy,$sell,$now,$now]);
         $id = $pdo->lastInsertId();
-        $pdo->prepare('INSERT INTO restocks (item_id,quantity,buy_price,sell_price,restocked_at) VALUES (?,?,?,?,?)')->execute([$id,$qty,$buy,$sell,date('Y-m-d H:i:s')]);
+        $pdo->prepare('INSERT INTO restocks (item_id,quantity,buy_price,sell_price,restocked_at) VALUES (?,?,?,?,?)')->execute([$id,$qty,$buy,$sell,$now]);
+        $pdo->prepare('INSERT INTO item_price_history (item_id,buy_price,sell_price,changed_at,changed_by) VALUES (?,?,?,?,?)')->execute([$id,$buy,$sell,$now,$frozen_user['id']]);
         log_activity($pdo, 'add_item', "$name qty=$qty buy=$buy sell=$sell");
         $msg = '✅ Item added.';
       } catch (Exception $e) {
@@ -38,12 +40,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
       $item = $stmt->fetch(PDO::FETCH_ASSOC);
 
       $changes = [];
-      if ($new_qty  != $item['quantity'])  $changes[] = "qty={$item['quantity']}→$new_qty";
-      if ($new_buy  != $item['buy_price']) $changes[] = "buy={$item['buy_price']}→$new_buy";
+      if ($new_qty  != $item['quantity'])   $changes[] = "qty={$item['quantity']}→$new_qty";
+      if ($new_buy  != $item['buy_price'])  $changes[] = "buy={$item['buy_price']}→$new_buy";
       if ($new_sell != $item['sell_price']) $changes[] = "sell={$item['sell_price']}→$new_sell";
 
       if ($changes) {
-        $pdo->prepare('UPDATE items SET quantity=?,buy_price=?,sell_price=? WHERE id=?')->execute([$new_qty,$new_buy,$new_sell,$id]);
+        $now = date('Y-m-d H:i:s');
+        $pdo->prepare('UPDATE items SET quantity=?,buy_price=?,sell_price=?,updated_at=? WHERE id=?')->execute([$new_qty,$new_buy,$new_sell,$now,$id]);
+        if ($new_buy != $item['buy_price'] || $new_sell != $item['sell_price']) {
+          $pdo->prepare('INSERT INTO item_price_history (item_id,buy_price,sell_price,changed_at,changed_by) VALUES (?,?,?,?,?)')->execute([$id,$new_buy,$new_sell,$now,$frozen_user['id']]);
+        }
         log_activity($pdo, 'update_item', "{$item['name']} " . implode(', ', $changes));
         $msg = '✅ Updated.';
       } else {
@@ -90,7 +96,7 @@ $items = $pdo->query('SELECT * FROM items ORDER BY CASE WHEN quantity=0 THEN 1 E
   <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Item</th><th>Stock</th><th>Buy (RM)</th><th>Sell (RM)</th><th></th></tr>
+      <tr><th>Item</th><th>Stock</th><th>Buy (RM)</th><th>Sell (RM)</th><th></th><th></th></tr>
     </thead>
     <tbody>
     <?php foreach ($items as $item): ?>
@@ -104,6 +110,7 @@ $items = $pdo->query('SELECT * FROM items ORDER BY CASE WHEN quantity=0 THEN 1 E
         <td><input type="number" name="sell_price" value="<?= $item['sell_price'] ?>" step="0.01" min="0.01" required style="width:80px"></td>
         <td><button type="submit">Update</button></td>
         </form>
+        <td><a href="/frozen/price_history.php?id=<?= $item['id'] ?>" style="text-decoration:none;font-size:.85rem;padding:5px 10px;background:#f1f5f9;color:#1e293b;border:1px solid #cbd5e1;border-radius:5px;display:inline-block;">Price History</a></td>
       </tr>
     <?php endforeach; ?>
     </tbody>
