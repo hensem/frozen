@@ -131,6 +131,15 @@ CREATE TABLE IF NOT EXISTS activity_log (
   created_at TEXT NOT NULL,
   FOREIGN KEY(user_id) REFERENCES users(id)
 );
+CREATE TABLE IF NOT EXISTS location_subscribers (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  phone      TEXT    NOT NULL UNIQUE,
+  chat_id    INTEGER,
+  hour_start INTEGER NOT NULL DEFAULT 0,
+  hour_end   INTEGER NOT NULL DEFAULT 23,
+  all_day    INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT
+);
 ");
 
 // Migrations (post-table-creation, safe to run on existing DBs)

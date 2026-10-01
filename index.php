@@ -2,6 +2,7 @@
 require 'auth_check.php';
 require_approved();
 require 'db.php';
+require_once __DIR__ . '/telegram_notify.php';
 
 $msg = '';
 
@@ -12,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
       $pdo->prepare('INSERT OR REPLACE INTO settings (key,value) VALUES ("location",?)')->execute([$loc]);
       $pdo->prepare('UPDATE locations SET last_used=? WHERE name=?')->execute([date('Y-m-d H:i:s'), $loc]);
       log_activity($pdo, 'update_location', $loc);
+      tg_notify_location($pdo, $loc);
       $msg = '✅ Location updated.';
     }
   } elseif ($_POST['action'] === 'add_location') {

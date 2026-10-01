@@ -94,6 +94,7 @@ foreach ($items as $item) {
   </table>
   </div>
   <p style="margin-top:16px;font-size:.95rem;color:#1e293b;">📍 Lokasi Sekarang: <strong><?php if ($map_url): ?><a href="<?= htmlspecialchars($map_url) ?>" target="_blank" style="color:#16a34a;text-decoration:underline;"><?= htmlspecialchars($location) ?></a><?php else: ?><?= htmlspecialchars($location) ?><?php endif; ?></strong></p>
+  <p style="margin-top:6px;font-size:.85rem;"><a href="/frozen/location_notify.php" style="color:#16a34a;">🔔 Notifikasi Lokasi</a></p>
   <p style="margin-top:10px;text-align:center;"><br><br><a href="/frozen/order.php" style="color:#16a34a;font-size:.95rem;font-weight:600;">Order Online</a></p>
   <p style="margin-top:10px;text-align:center;"><a href="/frozen/pub_products.php" style="color:#0ea5e9;font-size:.95rem;">Produk</a></p>
   <?php endif; ?>
