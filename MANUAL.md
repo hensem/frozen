@@ -17,6 +17,7 @@ Sistem pengurusan jualan makanan beku. Digunakan untuk menguruskan stok, rekod j
 9. [Products — Senarai Produk](#9-products--senarai-produk)
 10. [Users — Pengurusan Pengguna](#10-users--pengurusan-pengguna)
 11. [Halaman Awam](#11-halaman-awam)
+12. [Notifikasi Lokasi](#12-notifikasi-lokasi)
 
 ---
 
@@ -402,6 +403,7 @@ Halaman-halaman berikut boleh diakses tanpa log masuk:
 - Gambar item boleh diklik untuk paparan penuh
 - Nama item yang mempunyai manual boleh diklik untuk membuka arahan produk
 - Lokasi semasa dan pautan Google Maps dipaparkan di bawah
+- Pautan 🔔 **Notifikasi Lokasi** untuk melanggan pemberitahuan Telegram
 - Pautan ke halaman Order Online
 
 ### Order Online (`/frozen/order.php`)
@@ -416,6 +418,38 @@ Pelanggan akan menerima e-mel pengesahan pesanan. Maklumat penghantaran (Self Co
 ### Produk Awam (`/frozen/pub_products.php`)
 
 Senarai produk untuk tatapan umum.
+
+---
+
+## 12. Notifikasi Lokasi
+
+**URL:** `/frozen/location_notify.php`
+
+Pelanggan boleh melanggan notifikasi Telegram untuk menerima pemberitahuan apabila lokasi jualan dikemaskini.
+
+### Cara Melanggan
+
+1. Buka halaman awam dan klik pautan 🔔 **Notifikasi Lokasi**
+2. Masukkan nombor telefon
+3. Pilih masa penerimaan notifikasi:
+   - **Sepanjang Hari** — terima notifikasi pada bila-bila masa
+   - Atau pilih **jam mula** dan **jam tamat** — notifikasi hanya dihantar dalam julat masa tersebut (contoh: 10PM hingga 11PM bermaksud 10:00PM–11:59PM)
+4. Klik **Daftar**
+5. Klik butang **Aktifkan Telegram** yang muncul
+6. Tekan **Start** dalam Telegram — pendaftaran selesai
+
+### Arahan Bot Telegram (`@FrozenFoodAlertBot`)
+
+| Arahan | Penerangan |
+|--------|------------|
+| `/lokasi` | Semak lokasi jualan terkini |
+| `/berhenti` | Berhenti menerima notifikasi |
+
+### Berhenti Langganan (melalui laman web)
+
+1. Buka halaman **Notifikasi Lokasi**
+2. Di bahagian **Berhenti Langganan**, masukkan nombor telefon
+3. Klik **Berhenti Langganan**
 
 ---
 

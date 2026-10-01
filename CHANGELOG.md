@@ -3,6 +3,20 @@
 ## [2026-09-29]
 
 ### Added
+- Telegram bot notification for location updates (`@FrozenFoodAlertBot`)
+- Public subscribe page `location_notify.php` — enter phone number and notification time window
+- Subscribers activate via Telegram deep-link (one tap + Start), no manual command needed
+- Bot commands: `/lokasi` (check current location), `/berhenti` (unsubscribe)
+- `location_subscribers` table in DB
+- `telegram_notify.php` helper and `tg_webhook.php` webhook endpoint
+- 🔔 Notifikasi Lokasi link on public `home.php` below current location
+
+### Fixed
+- Location dropdown sort order — now sorted by `last_used DESC` (most recently used first)
+
+## [2026-09-29]
+
+### Added
 - Activity Log: filter by action (text, partial match)
 - Activity Log pagination: First, Prev, page window (±3 from current), Next, Last; current page styled as disabled
 

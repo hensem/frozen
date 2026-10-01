@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 $current_location = $pdo->query('SELECT value FROM settings WHERE key="location"')->fetchColumn() ?: 'Tak meniaga sekarang';
-$locations = $pdo->query('SELECT id, name, map_url FROM locations ORDER BY CASE WHEN name="Tak meniaga sekarang" THEN 0 ELSE 1 END DESC, last_used DESC, name')->fetchAll(PDO::FETCH_ASSOC);
+$locations = $pdo->query('SELECT id, name, map_url FROM locations ORDER BY last_used DESC NULLS LAST, name')->fetchAll(PDO::FETCH_ASSOC);
 
 $summary = $pdo->query('
   SELECT i.name,
