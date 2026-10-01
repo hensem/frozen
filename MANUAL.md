@@ -38,9 +38,19 @@ Halaman utama selepas log masuk. Menunjukkan ringkasan perniagaan dan kawalan lo
 
 ### Lokasi Semasa
 
-- Pilih lokasi dari senarai dropdown dan klik **Update** untuk mengemas kini lokasi yang dipaparkan kepada pelanggan
-- Untuk tambah lokasi baru, masukkan nama lokasi dan URL Google Maps, kemudian klik **Add**
+**Tetapkan Lokasi Aktif:**
+- Pilih lokasi dari dropdown dan klik **Update** untuk mengemas kini lokasi yang dipaparkan kepada pelanggan
 - Lokasi semasa akan dipaparkan di halaman awam (`home.php`)
+
+**Tambah Lokasi Baru:**
+- Masukkan nama lokasi dan URL Google Maps, kemudian klik **Add**
+
+**Edit / Padam Lokasi:**
+- Taip dalam kotak carian untuk menapis senarai lokasi
+- Pilih lokasi dari senarai — nama dan URL Google Maps akan diisi secara automatik
+- Ubah maklumat yang perlu, kemudian klik **Save** untuk kemaskini
+- Klik **Delete** untuk memadam lokasi tersebut
+- Lokasi yang sedang aktif tidak boleh dipadam (butang Delete akan dinyahaktifkan)
 
 ### Kad Ringkasan
 
@@ -69,8 +79,34 @@ Isi borang dengan maklumat berikut:
 - **Quantity** — Kuantiti stok awal
 - **Buy Price (RM)** — Harga beli
 - **Sell Price (RM)** — Harga jual
+- **Temporary item** — Tandakan jika item ini adalah item sementara (lihat bawah)
 
 Klik **Add Item** untuk simpan.
+
+### Item Sementara (Temporary)
+
+Digunakan apabila harga beli berubah tetapi stok lama belum habis terjual. Aliran kerja yang disyorkan:
+
+1. Tambah item baru dengan nama berbeza dan tandakan **Temporary item**
+2. Teruskan jual item lama sehingga stok habis (kuantiti = 0)
+3. Apabila item lama sudah habis, gunakan fungsi **Merge** untuk:
+   - Pindahkan stok item sementara ke item lama
+   - Kemaskini harga item lama dengan harga item sementara
+   - Padam item sementara secara automatik
+
+Item sementara **tidak akan dipaparkan** di halaman awam, PDF senarai harga, dan halaman Sell.
+
+### Merge Item Sementara
+
+Butang Merge hanya muncul pada baris item sementara apabila terdapat item lain dengan stok 0.
+
+1. Pada baris item sementara, pilih item sasaran dari dropdown **Merge into**
+2. Klik **Merge**
+3. Sistem akan:
+   - Tambah kuantiti item sementara ke item sasaran
+   - Kemaskini harga beli dan harga jual item sasaran
+   - Rekodkan dalam sejarah restock dan sejarah harga
+   - Padam item sementara
 
 ### Kemaskini Item
 

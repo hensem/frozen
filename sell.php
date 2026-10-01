@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 }
 
-$items = $pdo->query('SELECT * FROM items WHERE quantity > 0 ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+$items = $pdo->query('SELECT * FROM items WHERE quantity > 0 AND is_temp = 0 ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">

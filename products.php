@@ -6,7 +6,17 @@ require 'db.php';
 $msg = '';
 $msg_type = 'alert';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload_csv') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+
+  if ($_POST['action'] === 'delete') {
+    $id = (int)($_POST['product_id'] ?? 0);
+    if ($id) {
+      $pdo->prepare('DELETE FROM products WHERE id=?')->execute([$id]);
+      log_activity($pdo, 'delete_product', "id=$id");
+      $msg = '✅ Product deleted.';
+    }
+
+  } elseif ($_POST['action'] === 'upload_csv') {
   $file = $_FILES['csv'] ?? null;
   if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
     $msg = '❌ Upload failed.';
@@ -49,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     fclose($handle);
     log_activity($pdo, 'upload_products_csv', "added=$added updated=$updated ignored=$ignored");
     $msg = "✅ Done — Added: $added, Updated: $updated, Ignored (no change): $ignored";
+  }
   }
 }
 
@@ -99,6 +110,7 @@ $products = $pdo->query('SELECT * FROM products ORDER BY name')->fetchAll(PDO::F
         <th>Retail (RM)</th>
         <th>Created</th>
         <th>Updated</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -111,12 +123,20 @@ $products = $pdo->query('SELECT * FROM products ORDER BY name')->fetchAll(PDO::F
         <td><?= $p['retail_price'] !== null ? number_format($p['retail_price'], 2) : '<span class="muted">—</span>' ?></td>
         <td><?= $p['created_at'] ?? '—' ?></td>
         <td><?= $p['updated_at'] ?? '—' ?></td>
+        <td>
+          <form method="post" style="margin:0;">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="product_id" value="<?= $p['id'] ?>">
+            <button type="submit" class="btn-danger" style="padding:4px 10px;font-size:.8rem;" onclick="return confirm('Delete <?= htmlspecialchars(addslashes($p['name'])) ?>?')">Delete</button>
+          </form>
+        </td>
       </tr>
     <?php endforeach; ?>
     </tbody>
   </table>
   </div>
 </div>
+<button id="top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="display:none;position:fixed;bottom:24px;right:24px;width:44px;height:44px;border-radius:50%;background:#1e293b;color:#fff;font-size:1.2rem;border:none;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);">&#8679;</button>
 <script>
 function filterProducts() {
   const q = document.getElementById('prod-search').value.toLowerCase();
@@ -124,6 +144,8 @@ function filterProducts() {
     row.style.display = row.dataset.name.includes(q) ? '' : 'none';
   });
 }
+const btn = document.getElementById('top-btn');
+window.addEventListener('scroll', () => btn.style.display = window.scrollY > 200 ? 'flex' : 'none');
 </script>
 </body>
 </html>

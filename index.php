@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
       $msg = '✅ Location updated.';
     }
   } elseif ($_POST['action'] === 'add_location') {
-    $loc = trim($_POST['new_location']);
+    $loc     = trim($_POST['new_location'] ?? '');
     $map_url = trim($_POST['map_url'] ?? '');
     if ($loc) {
       try {
@@ -25,11 +25,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $msg = '❌ Location already exists.';
       }
     }
+  } elseif ($_POST['action'] === 'edit_location') {
+    $id      = (int)($_POST['loc_id'] ?? 0);
+    $name    = trim($_POST['name'] ?? '');
+    $map_url = trim($_POST['map_url'] ?? '');
+    if ($id && $name) {
+      try {
+        $old = $pdo->prepare('SELECT name FROM locations WHERE id=?');
+        $old->execute([$id]);
+        $old_name = $old->fetchColumn();
+        $pdo->prepare('UPDATE locations SET name=?,map_url=? WHERE id=?')->execute([$name, $map_url ?: null, $id]);
+        if ($old_name === ($pdo->query('SELECT value FROM settings WHERE key="location"')->fetchColumn())) {
+          $pdo->prepare('INSERT OR REPLACE INTO settings (key,value) VALUES ("location",?)')->execute([$name]);
+        }
+        log_activity($pdo, 'edit_location', "id=$id $old_name→$name");
+        $msg = '✅ Location updated.';
+      } catch (Exception $e) {
+        $msg = '❌ Name already exists.';
+      }
+    }
+  } elseif ($_POST['action'] === 'delete_location') {
+    $id = (int)($_POST['loc_id'] ?? 0);
+    if ($id) {
+      $loc_name = $pdo->prepare('SELECT name FROM locations WHERE id=?');
+      $loc_name->execute([$id]);
+      $loc_name = $loc_name->fetchColumn();
+      $active   = $pdo->query('SELECT value FROM settings WHERE key="location"')->fetchColumn();
+      if ($loc_name === $active) {
+        $msg = '❌ Cannot delete the current active location.';
+      } else {
+        $pdo->prepare('DELETE FROM locations WHERE id=?')->execute([$id]);
+        log_activity($pdo, 'delete_location', "id=$id $loc_name");
+        $msg = '✅ Location deleted.';
+      }
+    }
   }
 }
 
 $current_location = $pdo->query('SELECT value FROM settings WHERE key="location"')->fetchColumn() ?: 'Tak meniaga sekarang';
-$locations = $pdo->query('SELECT name, map_url FROM locations ORDER BY CASE WHEN name="Tak meniaga sekarang" THEN 0 ELSE 1 END DESC, last_used DESC, name')->fetchAll(PDO::FETCH_ASSOC);
+$locations = $pdo->query('SELECT id, name, map_url FROM locations ORDER BY CASE WHEN name="Tak meniaga sekarang" THEN 0 ELSE 1 END DESC, last_used DESC, name')->fetchAll(PDO::FETCH_ASSOC);
 
 $summary = $pdo->query('
   SELECT i.name,
@@ -81,12 +115,69 @@ $out_of_stock = array_filter($summary, fn($r) => $r['quantity'] == 0);
       <button type="submit">Update</button>
     </form>
   </div>
+
+  <div style="margin-bottom:12px;">
+    <label style="font-weight:600;display:block;margin-bottom:6px;">Edit / Delete Location</label>
+    <div style="position:relative;max-width:320px;margin-bottom:10px;">
+      <input type="text" id="loc-search" placeholder="Search location..." autocomplete="off"
+        style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:.95rem;"
+        oninput="filterLoc()" onfocus="filterLoc()" onblur="setTimeout(()=>document.getElementById('loc-drop').style.display='none',150)">
+      <div id="loc-drop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #cbd5e1;border-radius:6px;max-height:200px;overflow-y:auto;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.1);"></div>
+    </div>
+    <div id="loc-edit" style="display:none;">
+      <form method="post" class="form-grid" style="margin-bottom:6px;">
+        <input type="hidden" name="action" value="edit_location">
+        <input type="hidden" name="loc_id" id="loc-edit-id">
+        <label>Name<input type="text" name="name" id="loc-edit-name" required></label>
+        <label>Map URL<input type="url" name="map_url" id="loc-edit-map" placeholder="https://maps.app.goo.gl/..."></label>
+        <button type="submit">Save</button>
+      </form>
+      <form method="post" style="margin-top:4px;">
+        <input type="hidden" name="action" value="delete_location">
+        <input type="hidden" name="loc_id" id="loc-del-id">
+        <button type="submit" class="btn-danger" id="loc-del-btn" onclick="return confirm('Delete this location?')">Delete</button>
+      </form>
+    </div>
+  </div>
+
   <form method="post" class="form-grid" style="margin-bottom:8px;">
     <input type="hidden" name="action" value="add_location">
     <label>Add New Location<input type="text" name="new_location" placeholder="e.g. Pasar Malam Taman X"></label>
     <label>Google Map URL<input type="url" name="map_url" placeholder="https://maps.app.goo.gl/..."></label>
     <button type="submit">Add</button>
   </form>
+
+  <script>
+  const activeLoc = <?= json_encode($current_location) ?>;
+  const locsData  = <?= json_encode(array_values($locations)) ?>;
+
+  function filterLoc() {
+    const q    = document.getElementById('loc-search').value.toLowerCase();
+    const drop = document.getElementById('loc-drop');
+    const matches = locsData.filter(l => l.name.toLowerCase().includes(q));
+    if (!matches.length) { drop.style.display='none'; return; }
+    drop.innerHTML = matches.map(l =>
+      `<div style="padding:7px 10px;cursor:pointer;font-size:.95rem;" onmousedown="selectLoc(${l.id},'${escJ(l.name)}','${escJ(l.map_url||'')}')">${escH(l.name)}</div>`
+    ).join('');
+    drop.style.display = 'block';
+  }
+
+  function selectLoc(id, name, map) {
+    document.getElementById('loc-search').value    = name;
+    document.getElementById('loc-drop').style.display = 'none';
+    document.getElementById('loc-edit-id').value   = id;
+    document.getElementById('loc-del-id').value    = id;
+    document.getElementById('loc-edit-name').value = name;
+    document.getElementById('loc-edit-map').value  = map;
+    const delBtn = document.getElementById('loc-del-btn');
+    delBtn.disabled = name === activeLoc;
+    delBtn.title    = name === activeLoc ? 'Cannot delete active location' : '';
+    document.getElementById('loc-edit').style.display = 'block';
+  }
+
+  function escH(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escJ(s) { return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+  </script>
 
   <div class="cards">
     <div class="card">

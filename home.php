@@ -22,7 +22,7 @@ $authUrl = $google_provider->getAuthorizationUrl(['state' => $state]);
 
 $pdo = new PDO('sqlite:' . __DIR__ . '/../../config/frozen.db');
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-$items = $pdo->query('SELECT i.name, i.sell_price, i.quantity, i.image_id, i.id, i.template_id FROM items i ORDER BY CASE WHEN i.name="Ketupat Sotong 2 Ekor" THEN 2 WHEN i.quantity=0 THEN 1 ELSE 0 END, i.name')->fetchAll(PDO::FETCH_ASSOC);
+$items = $pdo->query('SELECT i.name, i.sell_price, i.quantity, i.image_id, i.id, i.template_id FROM items i WHERE i.is_temp=0 ORDER BY CASE WHEN i.name="Ketupat Sotong 2 Ekor" THEN 2 WHEN i.quantity=0 THEN 1 ELSE 0 END, i.name')->fetchAll(PDO::FETCH_ASSOC);
 $location = $pdo->query('SELECT value FROM settings WHERE key="location"')->fetchColumn() ?: 'Tak meniaga sekarang';
 $loc_row = $pdo->prepare('SELECT map_url FROM locations WHERE name=?');
 $loc_row->execute([$location]);

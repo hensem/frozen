@@ -5,7 +5,7 @@ require 'db.php';
 require __DIR__ . '/../../library/vendor/autoload.php';
 
 $lang  = $_GET['lang'] ?? 'my';
-$items = $pdo->query('SELECT items.name, items.sell_price, items.quantity, items.image_id, images.data, images.mime_type FROM items LEFT JOIN images ON images.id = items.image_id WHERE items.quantity > 0 ORDER BY items.name')->fetchAll(PDO::FETCH_ASSOC);
+$items = $pdo->query('SELECT items.name, items.sell_price, items.quantity, items.image_id, images.data, images.mime_type FROM items LEFT JOIN images ON images.id = items.image_id WHERE items.quantity > 0 AND items.is_temp = 0 ORDER BY items.name')->fetchAll(PDO::FETCH_ASSOC);
 
 $title = $lang === 'my' ? 'Senarai Harga' : 'Stock List';
 $col2  = $lang === 'my' ? 'Harga' : 'Stock';
