@@ -45,14 +45,16 @@ $all_users = $pdo->query('SELECT id, name FROM users WHERE deleted=0 ORDER BY na
 $per_page  = 20;
 $page      = max(1, (int)($_GET['page'] ?? 1));
 $f_user    = (int)($_GET['f_user'] ?? 0);
+$f_action  = trim($_GET['f_action'] ?? '');
 $f_from    = $_GET['f_from'] ?? '';
 $f_to      = $_GET['f_to'] ?? '';
 
 $where = [];
 $params = [];
-if ($f_user) { $where[] = 'a.user_id=?'; $params[] = $f_user; }
-if ($f_from) { $where[] = 'DATE(a.created_at)>=?'; $params[] = $f_from; }
-if ($f_to)   { $where[] = 'DATE(a.created_at)<=?'; $params[] = $f_to; }
+if ($f_user)   { $where[] = 'a.user_id=?';              $params[] = $f_user; }
+if ($f_action) { $where[] = 'a.action LIKE ?';           $params[] = '%' . $f_action . '%'; }
+if ($f_from)   { $where[] = 'DATE(a.created_at)>=?';    $params[] = $f_from; }
+if ($f_to)     { $where[] = 'DATE(a.created_at)<=?';    $params[] = $f_to; }
 $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
 $total = $pdo->prepare("SELECT COUNT(*) FROM activity_log a $where_sql");
@@ -73,7 +75,7 @@ $log_stmt->execute($params);
 $logs = $log_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 function log_query_string($overrides = []) {
-  $params = array_merge(['f_user' => $_GET['f_user'] ?? '', 'f_from' => $_GET['f_from'] ?? '', 'f_to' => $_GET['f_to'] ?? '', 'page' => $_GET['page'] ?? 1], $overrides);
+  $params = array_merge(['f_user' => $_GET['f_user'] ?? '', 'f_action' => $_GET['f_action'] ?? '', 'f_from' => $_GET['f_from'] ?? '', 'f_to' => $_GET['f_to'] ?? '', 'page' => $_GET['page'] ?? 1], $overrides);
   return '?' . http_build_query(array_filter($params, fn($v) => $v !== '' && $v !== 0 && $v !== '0'));
 }
 ?>
@@ -156,10 +158,11 @@ function log_query_string($overrides = []) {
         <?php endforeach; ?>
       </select>
     </label>
+    <label>Action<input type="text" name="f_action" value="<?= htmlspecialchars($f_action) ?>" placeholder="partial match"></label>
     <label>From<input type="date" name="f_from" value="<?= htmlspecialchars($f_from) ?>"></label>
     <label>To<input type="date" name="f_to" value="<?= htmlspecialchars($f_to) ?>"></label>
     <button type="submit">Filter</button>
-    <?php if ($f_user || $f_from || $f_to): ?>
+    <?php if ($f_user || $f_action || $f_from || $f_to): ?>
     <a href="users.php" class="btn-link" style="align-self:center;">Clear</a>
     <?php endif; ?>
   </form>
@@ -184,14 +187,24 @@ function log_query_string($overrides = []) {
   </div>
 
   <?php if ($total_pages > 1): ?>
-  <div class="pagination">
+  <div class="pagination" style="flex-wrap:wrap;gap:6px;">
+    <?php
+      $win = 3; // pages each side
+      $p_start = max(1, $page - $win);
+      $p_end   = min($total_pages, $page + $win);
+    ?>
     <?php if ($page > 1): ?>
-      <a href="<?= log_query_string(['page' => $page - 1]) ?>">&laquo; Prev</a>
+      <a href="<?= log_query_string(['page' => 1]) ?>">&laquo; First</a>
+      <a href="<?= log_query_string(['page' => $page - 1]) ?>">&lsaquo; Prev</a>
     <?php endif; ?>
-    <span>Page <?= $page ?> of <?= $total_pages ?> &nbsp;(<?= $total_rows ?> records)</span>
+    <?php for ($p = $p_start; $p <= $p_end; $p++): ?>
+      <a href="<?= log_query_string(['page' => $p]) ?>" <?= $p === $page ? 'class="active"' : '' ?>><?= $p ?></a>
+    <?php endfor; ?>
     <?php if ($page < $total_pages): ?>
-      <a href="<?= log_query_string(['page' => $page + 1]) ?>">Next &raquo;</a>
+      <a href="<?= log_query_string(['page' => $page + 1]) ?>">Next &rsaquo;</a>
+      <a href="<?= log_query_string(['page' => $total_pages]) ?>">Last &raquo;</a>
     <?php endif; ?>
+    <span style="margin-left:6px;">Page <?= $page ?> of <?= $total_pages ?> (<?= $total_rows ?> records)</span>
   </div>
   <?php endif; ?>
 </div>

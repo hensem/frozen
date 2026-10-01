@@ -203,3 +203,4 @@ a { color: #0ea5e9; }
   font-weight: 500;
 }
 .pagination a:hover { background: #cbd5e1; }
+.pagination a.active { background: #cbd5e1; color: #94a3b8; pointer-events: none; cursor: default; }

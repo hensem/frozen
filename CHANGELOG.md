@@ -3,6 +3,12 @@
 ## [2026-09-29]
 
 ### Added
+- Activity Log: filter by action (text, partial match)
+- Activity Log pagination: First, Prev, page window (±3 from current), Next, Last; current page styled as disabled
+
+## [2026-09-29]
+
+### Added
 - Dashboard: edit and delete existing locations via searchable dropdown — type to filter, select to populate fields, Save to update, Delete (disabled for active location)
 
 ## [2026-09-29 02:19]

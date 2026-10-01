@@ -384,10 +384,11 @@ Hanya admin yang boleh mengurus pengguna.
 ### Log Aktiviti
 
 Rekod semua tindakan yang dilakukan oleh semua pengguna. Boleh ditapis mengikut:
-- **Pengguna** tertentu
+- **Pengguna** — pilih dari dropdown
+- **Action** — taip sebahagian nama tindakan untuk carian separa (contoh: `sell` akan padankan `record_sale`)
 - **Tarikh** dari dan hingga
 
-Navigasi halaman tersedia jika rekod melebihi 20 entri.
+Navigasi halaman tersedia jika rekod melebihi 20 entri. Navigasi merangkumi butang **First**, **Prev**, nombor halaman berhampiran (±3 dari halaman semasa), **Next**, dan **Last**.
 
 ---
 
